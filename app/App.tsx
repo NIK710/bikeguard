@@ -13,6 +13,9 @@ import {
 import { BleManager, Device, State } from "react-native-ble-plx";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+const SERVICE_UUID = "7a1e0001-8e47-4a2b-9d8f-4c61247a1000";
+const COMMAND_CHAR_UUID = "7a1e0002-8e47-4a2b-9d8f-4c61247a1000";
+
 export default function App() {
   const [bleManager] = useState(() => new BleManager());
   const [bluetoothState, setBluetoothState] = useState<State>(
@@ -22,6 +25,9 @@ export default function App() {
   const [scanning, setScanning] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
+
+  const [armed, setArmed] = useState(false);
+  const [sendingCommand, setSendingCommand] = useState(false);
 
   useEffect(() => {
     const subscription = bleManager.onStateChange((state) => {
@@ -190,6 +196,37 @@ export default function App() {
     }
   }
 
+  async function sendArmCommand() {
+    if (!connectedDevice) {
+      Alert.alert("Not connected", "Connect to BikeGuard first.");
+      return;
+    }
+
+    const command = armed ? "DISARM" : "ARM";
+
+    try {
+      setSendingCommand(true);
+
+      await connectedDevice.writeCharacteristicWithResponseForService(
+        SERVICE_UUID,
+        COMMAND_CHAR_UUID,
+        btoa(command)
+      );
+
+      setArmed(command === "ARM");
+    } catch (error) {
+      console.log("Command error:", error);
+
+      const message =
+        error instanceof Error ? error.message : "Unable to send command.";
+
+      Alert.alert("Command failed", message);
+    } finally {
+      setSendingCommand(false);
+    }
+  }
+
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -213,6 +250,24 @@ export default function App() {
           <Text style={styles.connectedText}>
             Connected to {connectedDevice.name ?? "BikeGuard"}
           </Text>
+
+          <Text style={armed ? styles.armedStatus : styles.disarmedStatus}>
+            System: {armed ? "ARMED" : "DISARMED"}
+          </Text>
+
+          <Pressable
+            style={[styles.armButton, armed && styles.disarmButton]}
+            onPress={sendArmCommand}
+            disabled={sendingCommand}
+          >
+            <Text style={styles.buttonText}>
+              {sendingCommand
+                ? "Sending..."
+                : armed
+                  ? "Disarm BikeGuard"
+                  : "Arm BikeGuard"}
+            </Text>
+          </Pressable>
 
           <Pressable style={styles.disconnectButton} onPress={disconnectDevice}>
             <Text style={styles.buttonText}>Disconnect</Text>
@@ -361,5 +416,27 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: "#1f7a55",
     fontWeight: "600",
+  },
+  armedStatus: {
+    color: "#a33d3d",
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  disarmedStatus: {
+    color: "#52615b",
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  armButton: {
+    backgroundColor: "#a33d3d",
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  disarmButton: {
+    backgroundColor: "#1f7a55",
   },
 });
