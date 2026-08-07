@@ -12,9 +12,8 @@ import {
 } from "react-native";
 import { BleManager, Device, State } from "react-native-ble-plx";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const SERVICE_UUID = "7a1e0001-8e47-4a2b-9d8f-4c61247a1000";
-const COMMAND_CHAR_UUID = "7a1e0002-8e47-4a2b-9d8f-4c61247a1000";
+import RecordingScreen from "./RecordingScreen";
+import { COMMAND_CHAR_UUID, SERVICE_UUID } from "./recordingSession";
 
 export default function App() {
   const [bleManager] = useState(() => new BleManager());
@@ -28,6 +27,9 @@ export default function App() {
 
   const [armed, setArmed] = useState(false);
   const [sendingCommand, setSendingCommand] = useState(false);
+  const [currentPage, setCurrentPage] = useState<"home" | "recording">(
+    "home"
+  );
 
   useEffect(() => {
     const subscription = bleManager.onStateChange((state) => {
@@ -36,7 +38,9 @@ export default function App() {
 
     return () => {
       subscription.remove();
-      bleManager.destroy();
+      void bleManager.destroy().catch((error) => {
+        console.log("BLE cleanup error:", error);
+      });
     };
   }, [bleManager]);
 
@@ -143,6 +147,10 @@ export default function App() {
         timeout: 10000,
       });
 
+      if (Platform.OS === "android") {
+        await connected.requestMTU(185);
+      }
+
       await connected.discoverAllServicesAndCharacteristics();
 
       const services = await connected.services();
@@ -162,6 +170,7 @@ export default function App() {
 
       connected.onDisconnected((error) => {
         setConnectedDevice(null);
+        setCurrentPage("home");
 
         if (error) {
           console.log("BLE disconnection error:", error);
@@ -188,6 +197,7 @@ export default function App() {
     try {
       await connectedDevice.cancelConnection();
       setConnectedDevice(null);
+      setCurrentPage("home");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unable to disconnect.";
@@ -226,10 +236,17 @@ export default function App() {
     }
   }
 
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
+
+      {currentPage === "recording" && connectedDevice ? (
+        <RecordingScreen
+          device={connectedDevice}
+          onBack={() => setCurrentPage("home")}
+        />
+      ) : (
+        <>
 
       <Text style={styles.title}>BikeGuard</Text>
       <Text style={styles.status}>
@@ -267,6 +284,13 @@ export default function App() {
                   ? "Disarm BikeGuard"
                   : "Arm BikeGuard"}
             </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.recordingPageButton}
+            onPress={() => setCurrentPage("recording")}
+          >
+            <Text style={styles.buttonText}>Record IMU data</Text>
           </Pressable>
 
           <Pressable style={styles.disconnectButton} onPress={disconnectDevice}>
@@ -321,6 +345,8 @@ export default function App() {
           );
         }}
       />
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -438,5 +464,12 @@ const styles = StyleSheet.create({
   },
   disarmButton: {
     backgroundColor: "#1f7a55",
+  },
+  recordingPageButton: {
+    backgroundColor: "#315f85",
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+    marginBottom: 10,
   },
 });

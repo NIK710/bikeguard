@@ -84,7 +84,8 @@ The ESP32-S3 is responsible for:
 
 ## Current BLE Functionality
 
-Phone-to-ESP32 BLE commands are working.
+Phone-to-ESP32 BLE commands are working, and the labeled IMU recording pipeline
+is implemented across firmware and app.
 
 The latest completed milestone was testing the arm/disarm command path.
 
@@ -94,12 +95,20 @@ Confirmed behavior:
 - ARM activates the buzzer.
 - DISARM stops/deactivates the armed behavior.
 - This confirms end-to-end phone -> BLE -> ESP32 -> output control.
+- The app sends `START` and `STOP` over the existing command characteristic.
+- The ESP32 streams timestamped MPU6050 samples over a dedicated notify
+  characteristic at approximately 50 Hz.
+- The app validates and buffers samples, attaches session/action/theft metadata,
+  appends each session to one persistent dataset CSV, and exposes the native
+  share sheet.
 
 Do not redesign this working command path unnecessarily.
 
 ## Current Priority
 
-The next major feature is labeled IMU data collection.
+The current priority is physical-device validation and collection of labeled IMU
+sessions. Confirm sustained notification delivery, expected sample counts, and
+CSV export on the Android test device before adding preprocessing or ML logic.
 
 Desired workflow:
 
@@ -109,7 +118,7 @@ Desired workflow:
 4. The app sends a start-recording command to the ESP32.
 5. ESP32 samples the MPU6050 at a fixed rate.
 6. ESP32 sends samples to the phone over BLE notifications.
-7. The app records the samples for the requested interval.
+7. The app records samples until the user presses Stop.
 8. The app attaches the selected labels.
 9. The app saves or exports the data as CSV.
 
@@ -172,12 +181,12 @@ Avoid putting responsibilities on the ESP32 that are easier and safer to handle 
 ## Near-Term Roadmap
 
 1. Arm/disarm BLE + buzzer control — COMPLETE
-2. Add IMU recording start/stop state
-3. Add ESP32 -> phone BLE notification characteristic
-4. Stream timestamped IMU samples
-5. Add app-side recording buffer
-6. Add action + theft labels
-7. Save/export CSV
+2. Add IMU recording start/stop state — IMPLEMENTED
+3. Add ESP32 -> phone BLE notification characteristic — IMPLEMENTED
+4. Stream timestamped IMU samples — IMPLEMENTED
+5. Add app-side recording buffer — IMPLEMENTED
+6. Add action + theft labels — IMPLEMENTED
+7. Save/export CSV — IMPLEMENTED; validate on physical device
 8. Collect bike-mounted dataset
 9. Analyze signals and define preprocessing
 10. Train baseline classifier

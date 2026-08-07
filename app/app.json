@@ -17,13 +17,24 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.bikeguardapp"
+      "package": "com.anonymous.bikeguardapp",
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "react-native-ble-plx"
-    ]
+      "react-native-ble-plx",
+      "expo-sharing"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "eb875a6a-b2ce-430a-ac95-5b8f9411468e"
+      }
+    }
   }
 }

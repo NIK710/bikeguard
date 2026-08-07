@@ -20,6 +20,16 @@ The firmware is part of a larger system. See the repository-level `AGENTS.md` fo
 
 The MPU6050 is connected over I2C and has been confirmed working.
 
+Current ESP32-S3 I2C wiring:
+
+```text
+SDA = GPIO 8
+SCL = GPIO 9
+```
+
+Initialize it explicitly with `Wire.begin(8, 9)` rather than relying on board
+defaults.
+
 Libraries:
 ```cpp
 #include <Adafruit_MPU6050.h>
@@ -79,6 +89,14 @@ BikeGuard BLE Service
       timestamp_ms,ax,ay,az,gx,gy,gz
 ```
 
+Implemented UUIDs:
+
+```text
+Service:        7a1e0001-8e47-4a2b-9d8f-4c61247a1000
+Command write:  7a1e0002-8e47-4a2b-9d8f-4c61247a1000
+IMU notify:     7a1e0003-8e47-4a2b-9d8f-4c61247a1000
+```
+
 Keep command input and sensor output on separate characteristics.
 
 ## Device State
@@ -94,7 +112,10 @@ Avoid encoding system behavior implicitly through GPIO state.
 
 ## IMU Recording
 
-The next task is to support app-controlled data recording.
+App-controlled data recording is implemented in firmware. `START` resets the
+relative timestamp and begins streaming; `STOP` ends streaming. A disconnect
+also stops recording. Physical-device validation should confirm sustained 50 Hz
+delivery and exported sample counts.
 
 Expected behavior:
 
@@ -184,12 +205,10 @@ Those tasks are easier to manage in the app or offline tooling.
 
 ## Suggested Next Implementation Sequence
 
-1. Preserve working ARM/DISARM behavior.
-2. Add `recording` state.
-3. Parse `START` and `STOP`.
-4. Verify sampling to Serial at 50 Hz.
-5. Add a BLE notify characteristic.
-6. Send IMU packets over notifications.
-7. Confirm the Android app receives them.
-8. Test sustained streaming for 5-10 second recordings.
-9. Only then connect the stream to CSV collection in the app.
+1. Preserve working ARM/DISARM behavior — COMPLETE.
+2. Recording state and `START`/`STOP` parsing — IMPLEMENTED.
+3. Dedicated BLE notify characteristic and 50 Hz packets — IMPLEMENTED.
+4. App notification buffering and CSV export — IMPLEMENTED.
+5. Confirm the Android app receives sustained streams on physical hardware.
+6. Compare expected versus exported sample counts for 5-10 second recordings.
+7. Collect many labeled, bike-mounted sessions with consistent sensor mounting.

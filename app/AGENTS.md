@@ -17,6 +17,16 @@ See the repository-level `AGENTS.md` for full system context.
 
 Phone-to-ESP32 command communication works.
 
+The recording implementation now also:
+
+- Sends `START` and `STOP` through the command characteristic.
+- Subscribes to the dedicated IMU notify characteristic before sending `START`.
+- Validates seven-field text packets and buffers valid raw samples in memory.
+- Assigns a timestamp-based numeric session ID.
+- Appends every stopped recording to one `bikeguard-dataset.csv` file in Expo
+  document storage.
+- Offers the saved CSV through the native share sheet.
+
 The latest successful milestone was testing arm/disarm behavior:
 
 - The app sends an ARM command.
@@ -55,6 +65,14 @@ START
 STOP
 ```
 
+UUIDs:
+
+```text
+Service:        7a1e0001-8e47-4a2b-9d8f-4c61247a1000
+Command write:  7a1e0002-8e47-4a2b-9d8f-4c61247a1000
+IMU notify:     7a1e0003-8e47-4a2b-9d8f-4c61247a1000
+```
+
 and:
 
 ```text
@@ -63,27 +81,26 @@ ESP32 -> IMU Notify Characteristic -> App
 timestamp_ms,ax,ay,az,gx,gy,gz
 ```
 
-The app should subscribe to the IMU characteristic before or when recording begins.
+The app subscribes to the IMU characteristic before sending `START`.
 
 ## Data Collection Workflow
 
-The next major feature is labeled IMU recording.
+Labeled IMU recording is implemented and is ready for physical-device validation.
 
 Expected UI flow:
 
 1. User connects to BikeGuard.
 2. User selects an action.
 3. User selects theft/no-theft.
-4. User selects or uses a recording duration.
-5. User presses Start Recording.
-6. App creates a new session ID.
-7. App clears its recording buffer.
-8. App sends `START`.
-9. App collects IMU notifications.
-10. App stops after the requested interval.
-11. App sends `STOP`.
-12. App attaches session and label metadata.
-13. App appends the data to a CSV dataset.
+4. User presses Start Recording.
+5. App creates a new session ID.
+6. App clears its recording buffer.
+7. App subscribes to IMU notifications and sends `START`.
+8. App collects and validates IMU notifications.
+9. User presses Stop Recording.
+10. App sends `STOP` and removes the notification subscription.
+11. App attaches session and label metadata.
+12. App appends the session to the dataset CSV and offers it through the share sheet.
 
 ## Recommended Labels
 
@@ -220,7 +237,7 @@ The UI should not assume exactly 250 samples.
 
 ## File Strategy
 
-During development, the preferred architecture is:
+The implemented file architecture is:
 
 ```text
 ESP32
@@ -234,21 +251,22 @@ React Native app
 CSV file
 ```
 
-The CSV should live on or be exported from the phone rather than being generated on the ESP32.
+The CSV lives in the app's persistent document directory and can be exported
+through the phone's native share sheet. Every recording appends rows to the same
+`bikeguard-dataset.csv` file, with session IDs preserving recording boundaries.
+Do not write CSV on the ESP32.
 
 ## Implementation Priorities
 
-1. Preserve working ARM/DISARM commands.
-2. Subscribe to an ESP32 IMU notify characteristic.
-3. Log received packets to the app console.
-4. Parse them into structured samples.
-5. Add Start/Stop Recording.
-6. Add action selector.
-7. Add theft/no-theft selector.
-8. Assign session IDs.
-9. Buffer samples for one session.
-10. Export/append CSV.
-11. Add recording history / dataset management later.
+1. Preserve working ARM/DISARM commands — COMPLETE.
+2. Subscribe to the ESP32 IMU notify characteristic — IMPLEMENTED.
+3. Parse packets into structured raw samples — IMPLEMENTED.
+4. Start/Stop Recording controls — IMPLEMENTED.
+5. Action and theft/no-theft selectors — IMPLEMENTED.
+6. Assign session IDs and buffer one session — IMPLEMENTED.
+7. Append sessions to and share one dataset CSV — IMPLEMENTED.
+8. Validate sustained recording and export on the physical Android device.
+9. Add recording history / dataset management later.
 
 ## General Guidance
 
